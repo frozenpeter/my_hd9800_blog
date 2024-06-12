@@ -1,0 +1,222 @@
+---
+title: "Tutorial_3"
+output: html_document
+date: "2024-06-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+install the ggplot2 package
+or better, the tidyverse meta-package
+install a fork of the medicaldata package from GitHub
+
+```{r medicaldata}
+devtools::install_github("cbdrh-hdat9800/medicaldata")
+```
+
+## load the libraries
+## Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r librarys, echo=FALSE}
+library(tidyverse)
+library(medicaldata)
+```
+Create a ggplot
+```{r plot, echo=FALSE}
+ggplot(data = diabetes, aes(x = age, y = bmi)) + 
+  geom_point()
+
+```
+
+
+```{r plot2, echo=FALSE}
+ggplot(data = diabetes, aes(x = age, y = bmi, color = diabetes_5y)) + 
+  geom_point(size = 1, alpha = 0.7) + 
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "darkred") +
+  labs(title = "BMI vs Age in Diabetes Dataset",
+       subtitle = "Colored by Diabetes Status (5 Years)",
+       x = "Age",
+       y = "BMI",
+       color = "Diabetes Status",
+       caption = "Source: Diabetes Dataset") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.position = "bottom"
+  )
+```
+
+Experiment 1
+make a scatter plot of bmi versus glucose_mg-dl
+hint: it may not work as you expect, but we’ll fix that!
+
+```{r Scatter Plot, echo=FALSE}
+ggplot(data = diabetes, aes(x = `glucose_mg-dl`, y = bmi)) + 
+  geom_point() +
+  labs(title = "Scatter Plot of BMI vs Glucose Levels",
+       x = "Glucose (mg/dl)",
+       y = "BMI")
+```
+Enhanced Scatter Plot
+```{r Scatter Plot2, echo=FALSE}
+ggplot(data = diabetes %>% drop_na(bmi, `glucose_mg-dl`), aes(x = `glucose_mg-dl`, y = bmi, color = diabetes_5y)) + 
+  geom_point(size = 3, alpha = 0.7) +
+  labs(title = "Scatter Plot of BMI vs Glucose Levels",
+       subtitle = "Colored by Diabetes Status (5 Years)",
+       x = "Glucose (mg/dl)",
+       y = "BMI",
+       color = "Diabetes Status",
+       caption = "Source: Diabetes Dataset") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.position = "bottom"
+  )
+```
+We need to rename (or quote) that column with - in it!
+
+```{r Scatter Plot2, echo=FALSE}
+# Rename the column to avoid issues
+diab <- diabetes %>%
+  rename(glucose_mg_dl = `glucose_mg-dl`)
+
+
+ggplot(data = diab %>% drop_na(bmi, glucose_mg_dl), aes(x = glucose_mg_dl, y = bmi, color = diabetes_5y)) + 
+  geom_point(size = 3, alpha = 0.7) +
+  labs(title = "Scatter Plot of BMI vs Glucose Levels",
+       subtitle = "Colored by Diabetes Status (5 Years)",
+       x = "Glucose (mg/dl)",
+       y = "BMI",
+       color = "Diabetes Status",
+       caption = "Source: Diabetes Dataset") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.position = "bottom"
+  )
+```
+make a scatter plot of bmi versus diabetes_5y
+
+```{r Scatter Plot of bmi versus diabetes_5y, echo=FALSE}
+ggplot(data = diab %>% drop_na(bmi, diabetes_5y), aes(x = diabetes_5y, y = bmi, color = diabetes_5y)) + 
+  geom_jitter(width = 0.2, size = 3, alpha = 0.7) +
+  labs(title = "Scatter Plot of BMI vs Diabetes Status",
+       x = "Diabetes Status (5 Years)",
+       y = "BMI",
+       color = "Diabetes Status",
+       caption = "Source: Diabetes Dataset") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.position = "bottom"
+  )
+```
+```{r aesthetic mapping, echo=FALSE}
+ggplot(data = diab) + 
+  geom_point(mapping = aes(x = age, y = bmi, colour = diabetes_5y))
+```
+
+
+
+```{r Enhanced Scatter Plot with Average BMI Lines, echo=FALSE}
+# Calculate Mean BMI for Each Group
+mean_bmi_pos <- diabetes %>% filter(diabetes_5y == "pos") %>% summarize(mean_bmi = mean(bmi, na.rm = TRUE)) %>% pull(mean_bmi)
+mean_bmi_neg <- diabetes %>% filter(diabetes_5y == "neg") %>% summarize(mean_bmi = mean(bmi, na.rm = TRUE)) %>% pull(mean_bmi)
+
+
+ggplot(data = diabetes, aes(x = age, y = bmi, color = diabetes_5y)) + 
+  geom_point(size = 1, alpha = 0.7) + 
+  geom_hline(yintercept = mean_bmi_pos, linetype = "dotted", color = "#00BFC4", size = 1) +
+  geom_hline(yintercept = mean_bmi_neg, linetype = "dotted", color = "#F8766D", size = 1) +
+  labs(title = "BMI vs Age in Diabetes Dataset",
+       subtitle = "Colored by Diabetes Status (5 Years)",
+       x = "Age",
+       y = "BMI",
+       color = "Diabetes Status",
+       caption = "Source: Diabetes Dataset") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.position = "bottom"
+  )
+
+```
+
+Add a one-dimensional facetting
+write some code to add faceting by the diabetes_5y variable to a scatter plot of age for the x-axis and bmi for the y-axis
+
+hint: look at facet_wrap() in ggplot2
+
+use ?facet_wrap at the R Console prompt of visit the ggplot2 documentation web site
+```{r Scatter Plot with Faceting, echo=FALSE}
+ggplot(data = diabetes, aes(x = age, y = bmi, color = diabetes_5y)) + 
+  geom_point(size = 1, alpha = 0.7) + 
+  geom_hline(yintercept = mean_bmi_pos, linetype = "dotted", color = "#00BFC4", size = 1) +  # Using color for "pos" points
+  geom_hline(yintercept = mean_bmi_neg, linetype = "dotted", color = "#F8766D", size = 1) +  # Using color for "neg" points
+  facet_wrap(~ diabetes_5y) +  # Faceting by diabetes_5y
+  labs(title = "BMI vs Age in Diabetes Dataset",
+       subtitle = "Faceted by Diabetes Status (5 Years)",
+       x = "Age",
+       y = "BMI",
+       color = "Diabetes Status",
+       caption = "Source: Diabetes Dataset") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.position = "bottom"
+  )
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
