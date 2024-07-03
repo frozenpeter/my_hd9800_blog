@@ -8,22 +8,213 @@ date: "2024-06-19"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r medicaldata}
+devtools::install_github("cbdrh-hdat9800/medicaldata")
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+```{r data set}
+library(tidyverse)
+library(medicaldata)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Load and prepare the data
+data("esoph_ca", package = "medicaldata")
+# Check the structure and column names of the dataset
+glimpse(esoph_ca)
+```
+```{r error case }
+esoph_ca %>%
+  mutate(nsubjects = ncases + ncontrols) %>%
+  ggplot(aes(x = alcgp, y = nsubjects)) +
+    geom_bar()
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r plot set}
+# Create the bar chart
+esoph_ca %>%
+  mutate(nsubjects = ncases + ncontrols) %>%
+  ggplot(aes(x = alcgp, y = nsubjects)) +
+  geom_bar(stat = "identity", col = "cyan")  # Use pre-summed values directly
+```
+The issue encountered initially with the multiple lines in your bar plot is due to how the data was handled in your ggplot call. In the first code block, each row in your esoph_ca dataset that had ncases and ncontrols was mutated to have an nsubjects column but was not summarized or aggregated. This meant that for each original row in your dataset, a bar segment was plotted, leading to the stacked appearance with multiple lines, where each line represents an individual data point (row) for that alcohol group.
+
+Breakdown of what happened:
+Initial Plot with Lines (Striped Appearance):
+
+Each row was processed separately.
+The geom_bar(stat = "identity", col = "cyan") statement instructed ggplot2 to plot a bar for each individual count, resulting in a multi-layer bar where each 'layer' or 'stripe' was a separate row in your data.
+Corrected Plot:
+
+By changing the code to include group_by(alcgp) and then summarise(nsubjects = sum(ncases + ncontrols)), you effectively collapsed all the rows for each alcgp group into a single summary row that contains the total count of subjects (nsubjects).
+This summary operation means each alcgp category has exactly one data point representing the total nsubjects, leading to clean, single bars for each alcohol group without the internal lines.
+
+最初遇到的条形图中有多条线的问题是由于您在 ggplot 调用中处理数据的方式所致。在第一个代码块中，您的 esoph_ca 数据集中的每一行（包含 ncases 和 ncontrols）都发生了变化，变为包含 nsubjects 列，但未进行汇总或聚合。这意味着对于数据集中的每个原始行，都会绘制一个条形段，从而导致堆叠外观具有多条线，其中每条线代表该酒精组的单个数据点（行）。
+
+发生情况的细分：
+带有线条的初始图（条纹外观）：
+
+每行都单独处理。
+geom_bar(stat = "identity", col = "cyan") 语句指示 ggplot2 为每个单独的计数绘制一个条形，从而产生一个多层条形，其中每个“层”或“条纹”都是数据中的单独一行。
+修正后的图表：
+
+通过更改代码以包含 group_by(alcgp)，然后 summarise(nsubjects = sum(ncases + ncontrols))，您有效地将每个 alcgp 组的所有行折叠为包含受试者总数 (nsubjects) 的单个摘要行。
+此摘要操作意味着每个 alcgp 类别都有一个数据点代表总 nsubjects，从而为每个酒精组生成干净的单个条形图，而没有内部线条。
+
+```{r plot set2}
+esoph_ca %>%
+  group_by(alcgp) %>%
+  summarise(nsubjects = sum(ncases + ncontrols)) %>%
+  ggplot(aes(x = alcgp, y = nsubjects)) +
+    geom_bar(stat = "identity", colour = "cyan")
+```
+
+
+```{r plot set3}
+esoph_ca %>%
+  group_by(alcgp) %>%
+  summarise(nsubjects = sum(ncases + ncontrols)) %>%
+  ggplot(aes(x = alcgp, y = nsubjects)) +
+    geom_bar(stat = "identity", fill = "lightblue") +
+    labs(x="Alcohol consumption", 
+         y="Number of subjects",
+         title="Oesophageal cancer study") +
+    theme_minimal()
+```
+In ggplot2, the theme_minimal() function is one of several built-in theme options that you can apply to your plots to modify their aesthetic appearance. The theme affects non-data components of your plot, such as the background, grid lines, axis lines, text, and ticks.
+
+Key characteristics of theme_minimal():
+Minimalist Design: As the name suggests, theme_minimal() provides a very clean and minimalistic design. It is designed to keep the focus strictly on the data by reducing the visual weight of the plot's thematic elements.
+Background and Grid Lines: It features a very light grey background and no major grid lines, which helps keep the attention on the data points themselves. Minor grid lines are displayed, which are less pronounced and help in reading the plot without being too distracting.
+Axis Lines: It includes subtle axis lines to frame the data space, helping to define the data area clearly without overpowering the visual elements of the data itself.
+Font and Text: The text style under theme_minimal() is clean and modern, which enhances readability while maintaining an unobtrusive presence.
+
+```{r plot set4}
+# Enhanced plot
+p <- esoph_ca %>%
+  group_by(alcgp) %>%
+  summarise(nsubjects = sum(ncases + ncontrols)) %>%
+  ggplot(aes(x = alcgp, y = nsubjects, fill = alcgp)) +
+    geom_bar(stat = "identity", show.legend = FALSE) +
+    scale_fill_brewer(palette = "Blues") +
+    labs(x="Alcohol Consumption Group",
+         y="Number of Subjects",
+         title="Oesophageal Cancer Study: Subject Distribution by Alcohol Consumption",
+         subtitle="Data aggregated from multiple centers") +
+    theme_minimal(base_size = 14)
+
+p + coord_flip()
+```
+
+
+```{r plot set5}
+# Enhanced plot using age groups on the x-axis
+A <- esoph_ca %>%
+  group_by(agegp) %>%
+  summarise(nsubjects = sum(ncases + ncontrols)) %>%
+  ggplot(aes(x = agegp, y = nsubjects, fill = agegp)) +  # Change x-axis to age group
+    geom_bar(stat = "identity", show.legend = FALSE) +
+    scale_fill_manual(values = c("#6baed6", "#3182bd", "#08519c", "#052D64", "#041A40", "#030C2C")) +  
+    labs(x="Age Groups",  # Update label
+         y="Number of Subjects",
+         title="Oesophageal Cancer Study: Subject Distribution by Age Group",
+         subtitle="Data aggregated from multiple centers") +
+    theme_minimal(base_size = 14) +
+    theme(axis.text.x = element_text(hjust = 1))
+
+A + coord_flip()
+```
+# The goal of patchwork is to make it ridiculously simple to combine separate ggplots into the same graphic. 
+https://patchwork.data-imaginist.com/
+
+
+```{r plot set6}
+esoph_ca %>%
+  group_by(alcgp, agegp) %>%
+  summarise(nsubjects = sum(ncases + ncontrols)) %>%
+  ggplot(aes(x = alcgp, y = nsubjects, fill = agegp)) +
+    geom_col(position = "dodge") +
+    labs(x="Alcohol consumption", 
+         y="Number of subjects",
+         title="Oesophageal cancer study") +
+    theme_minimal()
+```
+- **分组**：数据按 `alcgp` 和 `agegp` 分组。
+- **总结**：它计算 `alcgp` 和 `agegp` 的每个组合的 `ncases` 和 `ncontrols` 的总和。
+- **可视化**：
+- 使用 `geom_col()` 和 `position = "dodge"`，为每个酒精消费类别中的每个年龄组创建并排条形图。这在视觉上将同一酒精消费组中的不同年龄组区分开来，从而更容易比较每个酒精类别中不同年龄组的受试者数量。
+- `fill` 被映射到 `agegp`，为每个年龄组赋予不同的颜色。
+- **`geom_col(position = "dodge")`**：此函数为每个酒精消费类别中的每个年龄组创建并排的条形图。`position = "dodge"` 参数确保代表不同年龄组的条形图彼此相邻而不是堆叠。这对于直接比较每个酒精消费类别中的这些组很有用。
+- **颜色区分**：它使用 `aes()` 函数中的 `fill = agegp`，根据 ggplot2 的默认颜色设置或指定的调色板自动为每个年龄组分配不同的颜色。这有助于在视觉上区分每个年龄组的数据。
+
+**优点**：
+- 直接比较每个酒精消费类别中的年龄组非常简单。
+- 按年龄组进行颜色编码可增强视觉区分。
+
+**缺点**：
+- 如果有许多年龄组或酒精消费类别，可能会变得混乱。
+
+```{r plot set7}
+esoph_ca %>%
+  group_by(alcgp, agegp) %>%
+  summarise(nsubjects = sum(ncases + ncontrols)) %>%
+  ggplot(aes(x = alcgp, y = nsubjects)) +
+    geom_col(fill="lightblue") +
+    facet_wrap(~agegp) +
+    labs(x="Alcohol consumption", 
+         y="Number of subjects",
+         title="Oesophageal cancer study") +
+    theme_minimal()
+```
+- **分组和汇总**：与第一个类似，它按 `alcgp` 和 `agegp` 对数据进行分组和汇总。
+- **可视化**：
+- 使用不进行位置调整的 `geom_col()`，这意味着每个条形图代表 `alcgp` 和 `agegp` 的每个组合的总受试者，但只使用一种颜色（`lightblue`）。
+- 实现 `facet_wrap(~agegp)`，为每个年龄组创建单独的面板（方面）。每个面板显示该特定年龄组在不同酒精消费水平下的受试者分布。
+- **`geom_col(fill="lightblue")`**：此处，`geom_col()` 不带 `position` 参数使用，如果多个条形图属于同一类别，则默认为堆叠。但是，由于它与 `facet_wrap()` 结合使用，因此每个方面（面板）仅显示一个年龄组的数据，从而避免了 `position = "dodge"` 的需要。填充颜色统一设置为“lightblue”，这意味着所有方面的所有条形图都共享相同的颜色。
+- **`facet_wrap(~agegp)`**：此函数为每个年龄组创建单独的面板，隔离每个组的数据显示。这种布局使人们更容易关注每个年龄组内的模式，但将直接比较与各组分开。
+
+**优点**：
+- 清晰地可视化每个年龄组在不同酒精消费水平下的受试者分布，不受其他年龄组的干扰。
+- 分面布局有助于隔离每个年龄组的数据，使执行特定组别的可视化分析更加容易。
+
+**缺点**：
+- 跨年龄组的比较需要更多的视觉来回，因为每个组都在单独的面板中。
+- 只使用一种颜色，这可能会降低视觉吸引力，与差异化颜色编码相比，乍一看信息量较少。
+
+
+```{r plot set8}
+esoph_ca %>%
+  group_by(alcgp, agegp) %>%
+  summarise(risk = sum(ncases) / sum(ncases + ncontrols)) %>%
+  ggplot(aes(x = agegp, y = alcgp, fill = risk)) +
+    geom_tile() +
+    labs(x="Age group", 
+         y="Alcohol consumption",
+         title="Oesophageal cancer study") +
+    theme_minimal()
+```
+
+
+```{r plot set9}
+library(ggplot2)
+library(dplyr)
+library(scales)  # for more detailed control over color scales
+
+esoph_ca %>%
+  group_by(alcgp, agegp) %>%
+  summarise(risk = sum(ncases) / sum(ncases + ncontrols), .groups = 'drop') %>%
+  ggplot(aes(x = agegp, y = alcgp, fill = risk)) +
+    geom_tile(color = "white") +  # Adding a white border for better tile separation
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0.25,
+                         limits = c(0, 0.5), space = "Lab",
+                         name = "Relative\nRisk") +  # Color gradient for clearer risk depiction
+    labs(x = "Age Group", 
+         y = "Alcohol Consumption",
+         title = "Oesophageal Cancer Study",
+         subtitle = "Relative risk of cancer by age and alcohol consumption") +
+    theme_minimal(base_size = 12) +
+    theme(axis.text.x = element_text(hjust = 1),  # Rotate x labels for better fit
+          legend.position = "right")  # Adjust legend position for better layout
+
+```
+
+

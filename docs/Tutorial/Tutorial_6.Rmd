@@ -1,0 +1,216 @@
+---
+title: "Tutorial_6"
+author: "Zhenyu_Zhang(z5037788)"
+date: "2024-07-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r labrary import}
+library(fpp3)
+library(ggplot2)
+library(tidyverse)
+library(feasts)
+library(ggridges)
+library(tsibble)
+library(lubridate)
+
+```
+
+
+```{r Load Filter PBS, echo=FALSE}
+# Load the data
+data("PBS")
+
+# Filter the data for H02
+H02 <- PBS %>% filter(ATC2 == "H02")
+
+head(H02)
+```
+
+
+```{r H02 Cost from PBS, echo=FALSE}
+# Plot the time series
+autoplot(H02, Cost) + 
+  labs(title = "H02 Cost from PBS", y = "Cost")
+```
+
+```{r Seasonal plot, echo=FALSE}
+# Set locale to English
+Sys.setlocale("LC_TIME", "C")
+
+
+# Seasonal plot
+gg_season(H02, Cost)+ 
+  labs(title = "Seasonal Plot of H02 Cost", y = "Cost")
+
+```
+
+
+```{r Subseries plot, echo=FALSE}
+# Subseries plot
+gg_subseries(H02, Cost)+ 
+  labs(title = "Subseries Plot of H02 Cost", y = "Cost")
+
+```
+
+
+```{r Lag plot, echo=FALSE, fig.height=10, fig.width=10}
+# Set locale to English
+Sys.setlocale("LC_TIME", "C")
+
+# Filter to select a single series, e.g., Concessional Co-payments
+H02_filtered <- PBS %>%
+  filter(ATC2 == "H02", Concession == "Concessional", Type == "Co-payments")
+
+# Use the gg_lag() function on the filtered dataset
+gg_lag(H02_filtered, Cost)
+```
+
+
+```{r ACF plot, echo=FALSE}
+# ACF plot
+ACF(H02, Cost) %>% autoplot()+ 
+  labs(title = "ACF Plot of H02 Cost")
+
+```
+
+
+```{r Ridge Plot for Distribution Over Time, echo=FALSE, fig.height=10, fig.width=7}
+# Create the ridge plot
+ggplot(H02_filtered, aes(x = Cost, y = as.factor(year(Month)), fill = as.factor(year(Month)))) +
+  geom_density_ridges(alpha = 0.5) +
+  labs(title = "Distribution of H02 Cost Over Years", x = "Cost", y = "Year") +
+  theme_minimal() +
+  scale_fill_viridis_d(guide = "none")  # Using a color scale for better visibility
+```
+
+```{r visualize the monthly distribution over the years, echo=FALSE}
+library(ggplot2)
+library(ggridges)
+library(dplyr)
+library(lubridate)
+
+# Filter and clean data
+H02_filtered <- H02_filtered %>% 
+  filter(!is.na(Cost))
+
+# Create new columns for the month and year
+H02_filtered <- H02_filtered %>%
+  mutate(Month_num = month(Month, label = TRUE, abbr = TRUE),
+         Year = year(Month))
+
+
+# Alternative - Extract month and year from the 'Month' column
+H02_filtered2 <- H02_filtered %>%
+  mutate(Month_num = factor(month(Month), labels = month.abb, ordered = TRUE),
+         Year = year(Month))
+
+head(H02_filtered)
+tail(H02_filtered)
+
+head(H02_filtered2)
+```
+
+### 1. Using `month(Month, label = TRUE, abbr = TRUE)`
+- 这使用了 `lubridate` 包中的 `month` 函数。
+- `label = TRUE` 将月份数字（1-12）转换为月份名称。
+- `abbr = TRUE` 返回缩写的月份名称（例如，“Jan”、“Feb”）。
+- 结果是一个以月份缩写作为标签的因子，默认按顺序排列。
+示例输出：
+- `Month_num` 将是一个因子：`Jan`、`Feb`、`Mar`，...
+- `Year` 将是从 `Month` 列中提取的数字年份。
+
+
+### 2. Using `factor(month(Month), labels = month.abb, ordered = TRUE)`
+- 首先，`month` 函数从 `Month` 列中提取月份数字 (1-12)。
+- 然后使用 `factor` 函数将这些数字转换为因子。
+- `labels = month.abb` 将缩写的月份名称分配为标签。
+- `ordered = TRUE` 指定因子水平是有序的，这对于确保月份在图表和摘要中按时间顺序出现很有用。
+示例输出：
+- `Month_num` 将是一个有序因子：`Jan`、`Feb`、`Mar`，...
+- `Year` 将是从 `Month` 列中提取的数字年份。
+
+
+
+
+
+fill = ..x.. 意味着密度脊的填充颜色由 x 轴变量的值决定，在本例中为 Cost。
+
+..x.. 语法用于引用 ggplot2 的 aes() 映射中计算出的 x 值。这允许基于 Cost 的值进行渐变着色。
+
+```{r test, echo=FALSE}
+# Generate the ridge plot
+ggplot(H02_filtered, aes(x = Cost, y = Month_num, group = Month_num, fill = ..x..)) +
+
+  geom_density_ridges_gradient(scale = 1, rel_min_height = 0.01) +
+  geom_density_ridges(alpha = 0.3, fill = NA) +  # Add the alpha layer
+
+  scale_fill_viridis_c(name = "Cost", option = "C") +
+  labs(title = "Monthly Distribution of H02 Cost Over Years", x = "Cost", y = "Month") +
+  theme_minimal()
+
+```
+
+### 为什么是两条曲线？
+
+当您同时使用 `geom_density_ridges()` 和 `geom_density_ridges_gradient()` 时，每个 geom 都会根据数据绘制自己的曲线：
+
+1. **`geom_density_ridges()`**：绘制具有统一填充颜色的脊图。
+- 此函数沿 y 轴绘制指定变量的密度脊线。
+- 它使用 `fill` 美学用单一颜色或图案填充曲线下的区域。
+- `alpha` 值控制填充颜色的透明度。alpha 值为 1 表示完全不透明，0 表示完全透明。
+
+2. **`geom_density_ridges_gradient()`**：根据 x 轴值绘制具有渐变填充的脊图。
+-`scale`
+    - 说明：此参数控制密度脊线沿 y 轴的缩放比例。
+    - 用法：`scale = 1` 表示将脊线缩放到其默认高度。增加该值会使脊线更高，而减少该值会使脊线更短。
+    - 示例：`scale = 2` 将使脊线的高度为默认值的两倍，从而有效地垂直拉伸脊线。
+- `rel_min_height`
+    - 说明：此参数控制脊线相对于每个脊线内最高点的最小高度。它基本上会使小凸起变平并减少噪音。
+    - 用法：`rel_min_height = 0.01` 表示脊线中低于最大高度 1% 的任何部分都会变平。
+    - 示例：将 `rel_min_height` 设置为更高的值，如 `rel_min_height = 0.1`，将导致脊线中更多的部分变平，从而使其更平滑。
+
+```{r Monthly Distribution of H02 Cost Over Years, echo=FALSE}
+# Generate the ridge plot
+ggplot(H02_filtered, aes(x = Cost, y = Month_num, group = Month_num, fill = ..x..)) +
+  geom_density_ridges(alpha = 0.3) +  # Add the alpha layer
+  
+  labs(title = "Monthly Distribution of H02 Cost Over Years", x = "Cost", y = "Month") +
+  theme_minimal()
+
+```
+
+```{r Monthly Distribution2 of H02 Cost Over Years, echo=FALSE}
+# Generate the ridge plot using geom_density_ridges
+# Generate the ridge plot using geom_density_ridges with a fixed fill color
+ggplot(H02_filtered, aes(x = Cost, y = Month_num, group = Month_num)) +
+  geom_density_ridges(aes(fill = Month_num), scale = 1, alpha = 0.5) +  # Use fixed color fill
+  scale_fill_brewer(palette = "Spectral", name = "Month") +  # Use a discrete color palette
+  labs(title = "Monthly Distribution of H02 Cost Over Years", x = "Cost", y = "Month") +
+  theme_minimal()
+
+
+# Generate the ridge plot using geom_density_ridges_gradient
+ggplot(H02_filtered, aes(x = Cost, y = Month_num, group = Month_num, fill = Cost)) +
+  geom_density_ridges_gradient(scale = 1, rel_min_height = 0.01, alpha = 0.5) +
+  scale_fill_viridis_c(name = "Cost") +  # Use a continuous color palette
+  labs(title = "Monthly Distribution of H02 Cost Over Years", x = "Cost", y = "Month") +
+  theme_minimal()
+
+```
+
+
+
+
+
+

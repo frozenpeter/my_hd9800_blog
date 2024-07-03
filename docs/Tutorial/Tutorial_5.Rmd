@@ -1,0 +1,172 @@
+---
+title: "Tutorial_5"
+author: "Zhenyu_Zhang(z5037788)"
+date: "2024-06-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r data set}
+# install.packages("gganimate")
+# install.packages("gifski")
+# install.packages("av")
+# install.packages("plotly")
+# install.packages("gifski")
+
+library(tidyverse)
+library(medicaldata)
+library(ggplot2)
+library(gganimate)
+library(plotly)
+library(dplyr)
+library(gifski)
+
+# Load and prepare the data
+data("esoph_ca", package = "medicaldata")
+# Check the structure and column names of the dataset
+glimpse(esoph_ca)
+```
+
+```{r relative risk}
+# Prepare the data
+esoph_ca <- esoph_ca %>%
+  mutate(total = ncases + ncontrols,
+         relative_risk = ncases / total,
+         agegp_numeric = as.numeric(as.factor(agegp)))  # Convert age groups to a numeric format
+
+```
+
+Using Plotly
+plotly is great for creating interactive web-based graphs. Here’s how you can create an interactive plot with plotly using your esoph_ca dataset. We'll make a plot where users can choose different age groups to see changes in relative risk across alcohol consumption categories.
+```{r plot set}
+# Create an interactive plot
+p <- esoph_ca %>%
+  plot_ly(x = ~alcgp, y = ~relative_risk, color = ~agegp, colors = RColorBrewer::brewer.pal(8, "Dark2"),
+          type = 'bar', text = ~paste("Relative Risk: ", relative_risk)) %>%
+  layout(barmode = 'group',
+         title = "Relative Risk by Alcohol Consumption and Age Group",
+         xaxis = list(title = "Alcohol Consumption Group"),
+         yaxis = list(title = "Relative Risk"),
+         legend = list(title = list(text = "Age Group")),
+         hovermode = "closest")
+
+# Render the plot
+p
+
+```
+
+shiny is another powerful option for building interactive web applications directly in R. Here's a simple example of a Shiny app that allows users to select an age group and dynamically updates the plot based on the selection:
+
+
+
+
+
+```{r plot set2}
+library(shiny)
+library(ggplot2)
+library(dplyr)
+library(medicaldata)
+
+# Load data
+data("esoph_ca", package = "medicaldata")
+
+# Define the UI
+ui <- fluidPage(
+  titlePanel("Interactive Visualization of Esophageal Cancer Risk"),
+  sidebarLayout(
+    sidebarPanel(
+      # Dropdown menu for alcohol consumption levels
+      selectInput("alcLevel", "Select Alcohol Consumption Level:",
+                  choices = c("0-39g/day", "40-79g/day", "80-119g/day", "120+g/day"))
+    ),
+    mainPanel(
+      plotOutput("riskPlot")
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  output$riskPlot <- renderPlot({
+    # Filter data based on the dropdown input
+    filtered_data <- esoph_ca %>%
+      filter(alcgp == input$alcLevel) %>%
+      group_by(agegp) %>%
+      summarise(relative_risk = sum(ncases) / sum(ncases + ncontrols))
+
+    # Plot
+    ggplot(filtered_data, aes(x = agegp, y = relative_risk, fill = agegp)) +
+      geom_col() +
+      labs(title = "Relative Risk by Age Group",
+           subtitle = paste("Alcohol consumption:", input$alcLevel),
+           x = "Age Group", y = "Relative Risk") +
+      theme_minimal()
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+
+```
+
+
+
+```{r plot set3}
+library(ggplot2)
+library(gganimate)
+
+ggplot(mtcars, aes(factor(cyl), mpg)) + 
+  geom_boxplot() + 
+  # Here comes the gganimate code
+  transition_states(
+    gear,
+    transition_length = 2,
+    state_length = 1
+  ) +
+  enter_fade() + 
+  exit_shrink() +
+  ease_aes('sine-in-out')
+```
+
+
+
+```{r plot set4}
+library(gapminder)
+
+ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, colour = country)) +
+  geom_point(alpha = 0.7, show.legend = FALSE) +
+  scale_colour_manual(values = country_colors) +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  facet_wrap(~continent) +
+  # Here comes the gganimate specific bits
+  labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
+  transition_time(year) +
+  ease_aes('linear')
+```
+
+
+
+```{r plot set5}
+
+```
+
+
+
+```{r plot set6}
+ggplot(iris, aes(x = Petal.Width, y = Petal.Length)) + 
+  geom_point(aes(colour = Species, group = seq_along(Species))) + 
+  transition_states(Species,
+                    transition_length = 2,
+                    state_length = 1)
+```
+
+
+
+```{r plot set7}
+
+```
+
